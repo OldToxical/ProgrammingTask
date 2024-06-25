@@ -10,6 +10,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "ProgrammingTaskGameMode.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -52,16 +54,56 @@ AProgrammingTaskCharacter::AProgrammingTaskCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	CharacterState = SkatingAnimationState::Skating;
+	SkatingSpeed = 0.f;
+	FrictionFactor = 150.f;
+	bIsJumping = false;
+}
+
+void AProgrammingTaskCharacter::SpeedUp()
+{
+	if (!GetCharacterMovement()->IsFalling())
+	{
+		SkatingSpeed = 1100.f;
+		CharacterState = SkatingAnimationState::Skating;
+	}
 }
 
 void AProgrammingTaskCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
+
+	// Get a reference to the game mode instance
+	auto Temp = GetWorld()->GetAuthGameMode();
+	GM = Cast<AProgrammingTaskGameMode>(Temp);
+
+	TSet<UActorComponent*> Components = GetComponents();
+	for (UActorComponent* Component : Components)
+	{
+		if (Component->ComponentHasTag(FName("Skateboard")))
+			SkateboardMesh = Cast<USkeletalMeshComponent>(Component);
+
+		if (Component->ComponentHasTag(FName("SkateboardAttachment")))
+			SkateboardAttachmentComponent = Cast<USceneComponent>(Component);
+	}
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Input
+void AProgrammingTaskCharacter::Tick(float DeltaTime)
+{
+	if (SkatingSpeed > 0.f)
+		SkatingSpeed -= FrictionFactor * DeltaTime;
+
+	// Get the forward vector of the character
+	FVector ForwardVector = GetActorForwardVector();
+
+	// Adjust the velocity direction to match the forward vector
+	FVector NewVelocity = ForwardVector * SkatingSpeed;
+
+	// Update the character's velocity
+	GetCharacterMovement()->Velocity.X = NewVelocity.X;
+	GetCharacterMovement()->Velocity.Y = NewVelocity.Y;
+}
 
 void AProgrammingTaskCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -78,14 +120,19 @@ void AProgrammingTaskCharacter::SetupPlayerInputComponent(UInputComponent* Playe
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
 		
 		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AProgrammingTaskCharacter::ExecuteJump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AProgrammingTaskCharacter::Move);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Canceled, this, &AProgrammingTaskCharacter::ResetFrictionFactor);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &AProgrammingTaskCharacter::ResetFrictionFactor);
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AProgrammingTaskCharacter::Look);
+
+		// Pause
+		EnhancedInputComponent->BindAction(PauseAction, ETriggerEvent::Triggered, this, &AProgrammingTaskCharacter::PauseGame);
 	}
 	else
 	{
@@ -111,9 +158,29 @@ void AProgrammingTaskCharacter::Move(const FInputActionValue& Value)
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
 		// add movement 
-		AddMovementInput(ForwardDirection, MovementVector.Y);
-		AddMovementInput(RightDirection, MovementVector.X);
+		if (MovementVector.Y > 0.f)
+		{
+			if (!GetCharacterMovement()->IsFalling() && !bIsJumping)
+			{
+				CharacterState = SkatingAnimationState::SpeedUp;
+				
+			}
+				
+			AddMovementInput(ForwardDirection, MovementVector.Y * 0.001f);
+		}
+		else if (MovementVector.Y < 0.f)
+		{
+			FrictionFactor = 800.f;
+		}
+			
+		AddMovementInput(RightDirection, MovementVector.X * 0.001f);
 	}
+}
+
+void AProgrammingTaskCharacter::ResetFrictionFactor(const FInputActionValue& Value)
+{
+	FrictionFactor = 150.f;
+	CharacterState = SkatingAnimationState::Skating;
 }
 
 void AProgrammingTaskCharacter::Look(const FInputActionValue& Value)
@@ -127,4 +194,36 @@ void AProgrammingTaskCharacter::Look(const FInputActionValue& Value)
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
+}
+
+void AProgrammingTaskCharacter::ExecuteJump(const FInputActionValue& Value)
+{
+	if (IsValid(SkateboardMesh))
+	{
+		EAttachmentRule LocationRule = EAttachmentRule::SnapToTarget;
+		EAttachmentRule RotationRule = EAttachmentRule::KeepWorld;
+		EAttachmentRule ScaleRule = EAttachmentRule::KeepRelative;
+
+		FAttachmentTransformRules AttachmentRules(LocationRule, RotationRule, ScaleRule, true);
+		SkateboardMesh->AttachToComponent(GetMesh(), AttachmentRules, FName("LeftToeBase"));
+	}
+		
+
+	bIsJumping = true;
+	CharacterState = SkatingAnimationState::Jumping;
+}
+
+void AProgrammingTaskCharacter::PauseGame(const FInputActionValue& Value)
+{
+	if (IsValid(GM))
+		GM->PauseGame();
+}
+
+void AProgrammingTaskCharacter::Landed(const FHitResult& Hit)
+{
+	if (IsValid(SkateboardMesh) && IsValid(SkateboardAttachmentComponent))
+		SkateboardMesh->AttachToComponent(SkateboardAttachmentComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+
+	bIsJumping = false;
+	CharacterState = SkatingAnimationState::Skating;
 }

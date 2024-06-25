@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -13,7 +11,25 @@ class AProgrammingTaskGameMode : public AGameModeBase
 
 public:
 	AProgrammingTaskGameMode();
+
+	// Functions
+	UFUNCTION(BlueprintCallable)
+	void AddWidgets(TArray<class UUserWidget*> Widgets_);
+	void PauseGame();
+
+	// Getters
+	float GetScore() { return Score; }	
+
+	// Setters
+	void UpdateScore(float NewScore);
+
+private:
+	void SwitchWidget(int WidgetIndex);
+
+	UPROPERTY(VisibleAnywhere)
+	float Score;
+	UPROPERTY(VisibleAnywhere)
+	TArray<class UUserWidget*> Widgets;
+	UPROPERTY(VisibleAnywhere)
+	int ActiveWidgetIndex;
 };
-
-
-
