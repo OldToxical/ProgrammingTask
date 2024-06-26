@@ -62,6 +62,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SpeedUp();
 
+	UFUNCTION(BlueprintCallable)
+	void EndJumpAnimation();
+
 protected:
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
@@ -111,5 +114,6 @@ private:
 	float SkatingSpeed;
 	float FrictionFactor;
 	bool bIsJumping;
+	bool bIsJumpingAnimationFinished;
 };
 

@@ -7,7 +7,12 @@ AObstacle::AObstacle()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	SceneComp = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
+	SetRootComponent(SceneComp);
+
 	Collider = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent"));
+	Collider->SetupAttachment(SceneComp);
+
 	Reward = 100.f;
 	bIsInfinite = false;
 	GM = nullptr;
@@ -34,6 +39,6 @@ void AObstacle::OverlapBegin(UPrimitiveComponent* overlappedComp, AActor* otherA
 			GM->UpdateScore(GM->GetScore() + Reward);
 
 		if (!bIsInfinite)
-			Destroy();
+			Collider->DestroyComponent();
 	}
 }

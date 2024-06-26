@@ -58,15 +58,21 @@ AProgrammingTaskCharacter::AProgrammingTaskCharacter()
 	SkatingSpeed = 0.f;
 	FrictionFactor = 150.f;
 	bIsJumping = false;
+	bIsJumpingAnimationFinished = true;
 }
 
 void AProgrammingTaskCharacter::SpeedUp()
 {
-	if (!GetCharacterMovement()->IsFalling())
+	if (!GetCharacterMovement()->IsFalling() && !bIsJumping)
 	{
 		SkatingSpeed = 1100.f;
 		CharacterState = SkatingAnimationState::Skating;
 	}
+}
+
+void AProgrammingTaskCharacter::EndJumpAnimation()
+{
+	bIsJumpingAnimationFinished = true;
 }
 
 void AProgrammingTaskCharacter::BeginPlay()
@@ -198,19 +204,21 @@ void AProgrammingTaskCharacter::Look(const FInputActionValue& Value)
 
 void AProgrammingTaskCharacter::ExecuteJump(const FInputActionValue& Value)
 {
-	if (IsValid(SkateboardMesh))
+	if (!bIsJumping)
 	{
-		EAttachmentRule LocationRule = EAttachmentRule::SnapToTarget;
-		EAttachmentRule RotationRule = EAttachmentRule::KeepWorld;
-		EAttachmentRule ScaleRule = EAttachmentRule::KeepRelative;
+		if (IsValid(SkateboardMesh) && !bIsJumping)
+		{
+			EAttachmentRule LocationRule = EAttachmentRule::SnapToTarget;
+			EAttachmentRule RotationRule = EAttachmentRule::KeepWorld;
+			EAttachmentRule ScaleRule = EAttachmentRule::KeepRelative;
 
-		FAttachmentTransformRules AttachmentRules(LocationRule, RotationRule, ScaleRule, true);
-		SkateboardMesh->AttachToComponent(GetMesh(), AttachmentRules, FName("LeftToeBase"));
+			FAttachmentTransformRules AttachmentRules(LocationRule, RotationRule, ScaleRule, true);
+			SkateboardMesh->AttachToComponent(GetMesh(), AttachmentRules, FName("LeftToeBase"));
+		}
+
+		bIsJumping = true;
+		CharacterState = SkatingAnimationState::Jumping;
 	}
-		
-
-	bIsJumping = true;
-	CharacterState = SkatingAnimationState::Jumping;
 }
 
 void AProgrammingTaskCharacter::PauseGame(const FInputActionValue& Value)

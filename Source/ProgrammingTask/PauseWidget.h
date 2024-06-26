@@ -20,11 +20,15 @@ protected:
 	UFUNCTION()
 	void OnClick_ResumeButton();
 	UFUNCTION()
+	void OnClick_RestartButton();
+	UFUNCTION()
 	void OnClick_QuitButton();
 
 	// Initialization properties
 	UPROPERTY(meta = (BindWidget))
 	class UButton* ResumeButton;
+	UPROPERTY(meta = (BindWidget))
+	class UButton* RestartButton;
 	UPROPERTY(meta = (BindWidget))
 	class UButton* QuitButton;
 

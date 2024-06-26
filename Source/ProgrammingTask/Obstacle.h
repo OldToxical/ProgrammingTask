@@ -13,14 +13,17 @@ public:
 	// Sets default values for this actor's properties
 	AObstacle();
 
+	UPROPERTY(EditAnywhere)
+	class UBoxComponent* Collider;
+	UPROPERTY(EditAnywhere)
+	class USceneComponent* SceneComp;
+
 protected:
 	virtual void BeginPlay() override;
 
 	UFUNCTION()
 	void OverlapBegin(UPrimitiveComponent* overlappedComp, AActor* otherActor, UPrimitiveComponent* otherComp, int32 otherBodyIndex, bool bFromSweep, const FHitResult& result);
 
-	UPROPERTY(EditAnywhere)
-	class UBoxComponent* Collider;
 	UPROPERTY(EditAnywhere)
 	float Reward;
 	UPROPERTY(EditAnywhere)
